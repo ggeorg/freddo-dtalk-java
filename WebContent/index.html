@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+	<head>
+		<title>DTalk Test</title>
+		<script type="text/javascript" src="dtalk2.js"></script>
+	</head>
+	<body>
+	
+		<textarea id="msg" rows="25" cols="80"></textarea>
+		<br>
+		<button id="send">Send</button>
+	
+		<script type="text/javascript">
+			var textarea = document.getElementById('msg');
+			var button = document.getElementById('send');
+			
+			button.addEventListener('click', function() {
+				if (confirm("Send '" + textarea.value + "'")) {
+					DTalk2._send(textarea.value);
+				}
+			});
+			
+			DTalk2.connect('ws://localhost:8080/freddo-dtalk/dtalksrv');
+
+		</script>
+
+	</body>
+</html>
