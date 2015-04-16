@@ -1,0 +1,1 @@
+package freddo.dtalk.client;
