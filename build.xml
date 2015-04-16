@@ -112,6 +112,10 @@
 	<target name="build" depends="javac" description="Build this project" >
 	</target>
 	
+	<target name="jar" depends="build" description="Create a jar file">
+		<jar destfile="${ant.project.name}-${app.version}.jar" basedir="${webapp.output}/WEB-INF/classes" />
+	</target>
+	
 	<target name="war" depends="build" description="Create a war file">
 		<zip destfile="${ant.project.name}-${app.version}.zip" basedir="${webapp.output}" />
 		<copy tofile="${ant.project.name}.war" file="${ant.project.name}-${app.version}.zip" />
