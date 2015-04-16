@@ -25,20 +25,31 @@
 						// transmit client info / authenticate
 					}
 					DTalk2._ws.onmessage = function(evt) {
-						console.log(evt.data);
+						DTalk2._log(evt.data);
 					}
 					DTalk2._ws.onclose = function() {
 						var msg = "Whoops! Lost connection to " + url;
 						
-						DTalk2._error(msg);
+						DTalk2._log(msg);
 						
 						if (errorCallback) {
 							errorCallback(msg);
 						}
 					}
 					DTalk2._send = function(msg) {
-						DTalk2._log(">>> " + msg);
+						DTalk2._log(">>> _send: " + msg);
 						DTalk2._ws.send(msg);
+					}
+					DTalk2.disconnect = function(disconnectCallback) {
+						DTalk2._log(">>> disconnect")
+						DTalk2._send(JSON.stringify({
+							dtalk: 2,
+							action: "disconnect"
+						}));
+						DTalk2._ws.close();
+						if (disconnectCallback) {
+							disconnectCallback();
+						}
 					}
 				}
 				

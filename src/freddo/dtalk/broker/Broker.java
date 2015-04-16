@@ -1,10 +1,12 @@
 package freddo.dtalk.broker;
 
-import java.util.Properties;
+import freddo.dtalk.DTalkConfiguration;
 
 public interface Broker {
 	
-	void initialize(Properties properties);
+	void initialize(DTalkConfiguration config);
+
+	void start();
 	
 	void shutdown();
 

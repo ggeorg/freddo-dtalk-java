@@ -1,8 +1,5 @@
 package freddo.dtalk.broker;
 
-import javax.ejb.EJB;
-import javax.ejb.Stateless;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,16 +8,13 @@ import com.arkasoft.jton.JtonObject;
 import com.arkasoft.jton.JtonParseException;
 import com.arkasoft.jton.JtonParser;
 
-import freddo.dtalk.DTalk;
+import freddo.dtalk.DTalkConnection;
+import freddo.dtalk.DTalkMessageHandler;
 
-@Stateless
-public class BrokerMessageHandler {
+public final class BrokerMessageHandler implements DTalkMessageHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(BrokerMessageHandler.class);
-	
-	@EJB
-	DTalk mDTalk;
 
-	public void onMessage(Connection conn, String message) {
+	public void onMessage(DTalkConnection conn, String message) {
 		try {
 			JtonElement jtonElem = JtonParser.parse(message);
 			if (jtonElem.isJtonObject()) {

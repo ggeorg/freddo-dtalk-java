@@ -8,19 +8,29 @@
 	
 		<textarea id="msg" rows="25" cols="80"></textarea>
 		<br>
+		<button id="connect">Connect</button>
+		<button id="disconnect">Disconnect</button>
 		<button id="send">Send</button>
 	
 		<script type="text/javascript">
 			var textarea = document.getElementById('msg');
-			var button = document.getElementById('send');
+			var connectBtn = document.getElementById('connect');
+			var disconnectBtn = document.getElementById('disconnect');
+			var sendBtn = document.getElementById('send');
 			
-			button.addEventListener('click', function() {
+			connectBtn.addEventListener('click', function() {
+				DTalk2.connect('ws://localhost:8888/dtalksrv');
+			});
+			
+			disconnectBtn.addEventListener('click', function() {
+				DTalk2.disconnect();
+			});
+			
+			sendBtn.addEventListener('click', function() {
 				if (confirm("Send '" + textarea.value + "'")) {
 					DTalk2._send(textarea.value);
 				}
 			});
-			
-			DTalk2.connect('ws://localhost:8080/freddo-dtalk/dtalksrv');
 
 		</script>
 

@@ -1,12 +1,12 @@
 package freddo.dtalk.broker.servlet;
 
+import static freddo.dtalk.broker.servlet.ServerEndpointConfigurator.BROKER_MESSAGE_HANDLER_KEY;
 import static freddo.dtalk.broker.servlet.ServerEndpointConfigurator.DTALK_HANDSHAKE_REQUEST_KEY;
 
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.concurrent.Future;
 
-import javax.ejb.EJB;
 import javax.servlet.http.HttpSession;
 import javax.websocket.EndpointConfig;
 import javax.websocket.OnClose;
@@ -21,15 +21,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import freddo.dtalk.DTalkConnection;
 import freddo.dtalk.broker.BrokerMessageHandler;
-import freddo.dtalk.broker.Connection;
 
 @ServerEndpoint(value = "/dtalksrv", configurator = ServerEndpointConfigurator.class)
-public class DTalkServerEndpoint implements Connection {
+public class DTalkServerEndpoint implements DTalkConnection {
 	private static final Logger LOG = LoggerFactory.getLogger(DTalkServerEndpoint.class);
-
-	@EJB
-	BrokerMessageHandler mMessageHandler;
 
 	private EndpointConfig mConfig;
 	private Session mSession;
@@ -68,6 +65,10 @@ public class DTalkServerEndpoint implements Connection {
 	HandshakeRequest getHandshakeRequest() {
 		return (HandshakeRequest) mConfig.getUserProperties().get(DTALK_HANDSHAKE_REQUEST_KEY);
 	}
+	
+	BrokerMessageHandler getMessageHandler() {
+		return (BrokerMessageHandler) mConfig.getUserProperties().get(BROKER_MESSAGE_HANDLER_KEY);
+	}
 
 	@OnClose
 	public void onClose() {
@@ -90,7 +91,7 @@ public class DTalkServerEndpoint implements Connection {
 		}
 
 		// Handle message.
-		mMessageHandler.onMessage(this, message);
+		getMessageHandler().onMessage(this, message);
 	}
 
 	@OnError

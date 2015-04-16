@@ -3,11 +3,7 @@ package freddo.dtalk.broker.netty;
 import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import freddo.dtalk.Constants;
+import freddo.dtalk.DTalk;
 import freddo.dtalk.broker.BrokerMessageHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -29,12 +25,15 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
 import io.netty.util.CharsetUtil;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Object> {
-	private static final Logger LOG = LoggerFactory.getLogger(DTalkChannelInboundHandler.class);
+public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
+	private static final Logger LOG = LoggerFactory.getLogger(NettyBrokerHandler.class);
 
 	private final Map<ChannelHandlerContext, NettyChannel> mChannelMapper =
 			new HashMap<ChannelHandlerContext, NettyChannel>();
@@ -43,7 +42,7 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 
 	@Override
 	public void channelRead0(ChannelHandlerContext ctx, Object message) {
-		LOG.trace(">>> channelRead: {}", message);
+		LOG.trace(">>> channelRead");
 		if (message instanceof FullHttpRequest) {
 			handleHttpRequest(ctx, (FullHttpRequest) message);
 		} else if (message instanceof WebSocketFrame) {
@@ -54,11 +53,17 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
 		LOG.trace(">>> channelInactive: {}", ctx);
+		super.channelInactive(ctx);
+		synchronized (mChannelMapper) {
+			mChannelMapper.remove(ctx);
+		}
 
+		// TODO fire on close....
 	}
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+		LOG.error(">>> exceptionCaught: {}", cause.getMessage());
 		ctx.close();
 	}
 
@@ -72,7 +77,7 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 		}
 
 		// WebSocket Handshake
-		if (req.getMethod() != HttpMethod.GET && req.getUri().startsWith(Constants.DTALKSRV_PATH)) {
+		if (req.getMethod() == HttpMethod.GET && req.getUri().startsWith(DTalk.DTALKSRV_PATH)) {
 			WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true);
 			WebSocketServerHandshaker handshaker = wsFactory.newHandshaker(req);
 			if (handshaker == null) {
@@ -81,7 +86,9 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 				// TODO default authentication here
 				handshaker.handshake(ctx.channel(), req);
 				synchronized (mChannelMapper) {
-					mChannelMapper.put(ctx, new NettyChannel(ctx, handshaker));
+					NettyChannel channel = new NettyChannel(ctx, handshaker);
+					channel.setIdleTime(60);
+					mChannelMapper.put(ctx, channel);
 				}
 			}
 		} else {
@@ -102,14 +109,12 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 		if (frame instanceof PongWebSocketFrame) {
 			return;
 		}
-		
-		NettyChannel channel = null;
-		synchronized (mChannelMapper) {
-			channel = mChannelMapper.get(ctx);
-			if (channel == null) {
-				// XXX
-				return;
-			}
+
+		// Lookup channel by ctx
+		NettyChannel channel = mChannelMapper.get(ctx);
+		if (channel == null) {
+			// XXX
+			return;
 		}
 
 		// Check for closing frame
@@ -120,9 +125,11 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 
 		// Reject binary frames
 		if (!(frame instanceof TextWebSocketFrame)) {
-			throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass().getName()));
+			LOG.warn("{} frame types not supported", frame.getClass().getName());
+			return;
 		}
 
+		// Get message
 		String message = ((TextWebSocketFrame) frame).text();
 		message = StringUtils.deleteWhitespace(message);
 
@@ -133,6 +140,9 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 			}
 			LOG.debug("message: {}", _message);
 		}
+
+		// ctx.channel().writeAndFlush(new
+		// TextWebSocketFrame(message.toUpperCase()));
 
 		// Handle message.
 		mMessageHandler.onMessage(channel, message);
@@ -155,7 +165,7 @@ public class DTalkChannelInboundHandler extends SimpleChannelInboundHandler<Obje
 	}
 
 	private static String getWebSocketLocation(FullHttpRequest req) {
-		String location = req.headers().get(HOST) + Constants.DTALKSRV_PATH;
+		String location = req.headers().get(HOST) + DTalk.DTALKSRV_PATH;
 		// if (NettyBroker.SSL) {
 		// return "wss://" + location;
 		// } else {
