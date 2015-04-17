@@ -54,9 +54,14 @@ public class DTalk {
 			mMessageBus = new MessageBus();
 
 			try {
+				
+				// Dispatcher/router
+				
+				// Broker
 
 				if (mBroker != null) {
-					// TODO shutdown old broker...
+					mBroker.shutdown();
+					mBroker = null;
 				}
 
 				Class<? extends Broker> brokerCls = config.getBrokerClass();
@@ -65,6 +70,10 @@ public class DTalk {
 					mBroker.initialize(config);
 					mBroker.start();
 				}
+				
+				// Publish
+				
+				// Discovery
 
 			} catch (InstantiationException e) {
 				// TODO Auto-generated catch block
