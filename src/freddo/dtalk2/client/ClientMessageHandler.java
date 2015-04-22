@@ -1,7 +1,5 @@
-package freddo.dtalk.client;
+package freddo.dtalk2.client;
 
-import freddo.dtalk.DTalkMessageHandler;
-
-public final class ClientMessageHandler implements DTalkMessageHandler {
+public final class ClientMessageHandler {
 
 }

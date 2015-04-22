@@ -1,54 +1,77 @@
-package freddo.dtalk.broker;
+package freddo.dtalk2.broker;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.arkasoft.jton.JtonArray;
 import com.arkasoft.jton.JtonElement;
-import com.arkasoft.jton.JtonObject;
-import com.arkasoft.jton.JtonParseException;
 import com.arkasoft.jton.JtonParser;
 
-import freddo.dtalk.DTalkConnection;
-import freddo.dtalk.DTalkMessageHandler;
+import freddo.dtalk2.DTalk;
+import freddo.dtalk2.DTalkConnection;
+import freddo.dtalk2.messaging.InboundMessage;
 
-public final class BrokerMessageHandler implements DTalkMessageHandler {
+public final class BrokerMessageHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(BrokerMessageHandler.class);
 
-	public void onMessage(DTalkConnection conn, String message) {
+	public static void onMessage(DTalkConnection conn, String message) {
 		try {
 			JtonElement jtonElem = JtonParser.parse(message);
 			if (jtonElem.isJtonObject()) {
-				JtonObject _message = jtonElem.getAsJtonObject();
-				int version = _message.get("dtalk").getAsInt();
-				if (version == 2) {
-					String topic = _message.has("topic") ? _message.get("topic").getAsString() : null;
-					String action = _message.get("action").getAsString();
-					if (topic == null) {
-						if ("connect".equals(action)) {
-							LOG.debug("Handle CONNECT ...");
-							// TODO reply with OK or ERROR
-						} else {
-							// TODO if not authenticated reply with ERROR
-							if ("disconnect".equals(action)) {
-								LOG.debug("Handle DISCONNECT");
-							}
+				onMessage(new InboundMessage(conn, jtonElem.getAsJtonObject()));
+			} else if (jtonElem.isJtonArray()) {
+				onMessage(conn, jtonElem.getAsJtonArray());
+			}
+		} catch (Exception e) {
+			LOG.error(e.getMessage(), e);
+		}
+	}
+	
+	private static void onMessage(DTalkConnection conn, JtonArray jtonArray) {
+		for (JtonElement jtonElem_i : jtonArray.getAsJtonArray()) {
+			if (jtonElem_i.isJtonObject()) {
+				onMessage(new InboundMessage(conn, jtonElem_i.getAsJtonObject()));
+			}
+		}
+	}
+
+	@SuppressWarnings("deprecation")
+	private static void onMessage(InboundMessage message) {
+		LOG.trace(">>> onMessage: {}", message);
+		try {
+			int version = message.getVersion();
+			if (version == 2) {
+				String topic = message.getTopic();
+				String action = message.getAction();
+				if (topic == null) {
+					if ("connect".equals(action)) {
+						LOG.debug("Handle CONNECT");
+						String regKey = message.getFrom();
+						if (regKey == null) {
+							regKey = message.getConnection().getId();
 						}
+						DTalk.addConnection(regKey, message.getConnection());
+						// TODO reply with OK or ERROR
 					} else {
 						// TODO if not authenticated reply with ERROR
-						
-						
-						
+						if ("disconnect".equals(action)) {
+							LOG.debug("Handle DISCONNECT");
+							// TODO ???
+						}
 					}
+				} else {
+					DTalk.sendMessage0(message);
 				}
+			} else {
+				// TODO dtalk != 2 not supported
 			}
-
-			// message format error
-
-		} catch (JtonParseException e) {
-
-		} catch (UnsupportedOperationException e) {
-
+		} catch (Exception e) {
+			LOG.error(e.getMessage(), e);
 		}
+	}
+	
+	private BrokerMessageHandler() {
+		// hidden
 	}
 
 }

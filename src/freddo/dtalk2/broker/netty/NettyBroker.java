@@ -1,4 +1,4 @@
-package freddo.dtalk.broker.netty;
+package freddo.dtalk2.broker.netty;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -17,8 +17,8 @@ import java.net.InetSocketAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import freddo.dtalk.DTalkConfiguration;
-import freddo.dtalk.broker.Broker;
+import freddo.dtalk2.DTalkConfiguration;
+import freddo.dtalk2.broker.Broker;
 
 public class NettyBroker implements Broker {
 	private static final Logger LOG = LoggerFactory.getLogger(NettyBroker.class);

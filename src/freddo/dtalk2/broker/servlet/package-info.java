@@ -1,1 +1,1 @@
-package freddo.dtalk.broker.servlet;
+package freddo.dtalk2.broker.servlet;

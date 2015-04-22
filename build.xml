@@ -113,7 +113,8 @@
 	</target>
 	
 	<target name="jar" depends="build" description="Create a jar file">
-		<jar destfile="${ant.project.name}-${app.version}.jar" basedir="${webapp.output}/WEB-INF/classes" />
+		<jar destfile="${ant.project.name}-${app.version}.jar" basedir="${webapp.output}/WEB-INF/classes" 
+			excludes="**/StaticLoggerBinder.class, **/*Test.class"/>
 	</target>
 	
 	<target name="war" depends="build" description="Create a war file">

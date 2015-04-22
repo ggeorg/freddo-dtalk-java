@@ -1,6 +1,6 @@
-package freddo.dtalk.broker;
+package freddo.dtalk2.broker;
 
-import freddo.dtalk.DTalkConfiguration;
+import freddo.dtalk2.DTalkConfiguration;
 
 public interface Broker {
 	

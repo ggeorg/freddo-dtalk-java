@@ -19,7 +19,8 @@
 			var sendBtn = document.getElementById('send');
 			
 			connectBtn.addEventListener('click', function() {
-				DTalk2.connect('ws://localhost:8888/dtalksrv');
+				//DTalk2.connect('ws://localhost:8888/dtalksrv');
+				DTalk2.connect('ws://localhost:8080/freddo-dtalk/dtalksrv');
 			});
 			
 			disconnectBtn.addEventListener('click', function() {
@@ -27,9 +28,9 @@
 			});
 			
 			sendBtn.addEventListener('click', function() {
-				if (confirm("Send '" + textarea.value + "'")) {
+				//if (confirm("Send '" + textarea.value + "'")) {
 					DTalk2._send(textarea.value);
-				}
+				//}
 			});
 
 		</script>

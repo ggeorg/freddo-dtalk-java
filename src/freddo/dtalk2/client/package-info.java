@@ -1,1 +1,1 @@
-package freddo.dtalk.client;
+package freddo.dtalk2.client;

@@ -5,4 +5,4 @@
  * @author ggeorg
  *
  */
-package freddo.dtalk.client.netty;
+package freddo.dtalk2.client.netty;

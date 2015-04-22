@@ -14,15 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package freddo.dtalk.util;
+package freddo.messagebus;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Provides support for basic intra-application message passing.
  */
 public class MessageBus {
-	private HashMap<String, ListenerList<MessageBusListener<?>>> messageTopics = new HashMap<String, ListenerList<MessageBusListener<?>>>();
+	
+	private final Map<String, ListenerList<MessageBusListener<?>>> messageTopics = 
+			new HashMap<String, ListenerList<MessageBusListener<?>>>();
 
 	/**
 	 * Subscribes a listener to a message topic.

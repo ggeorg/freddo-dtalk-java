@@ -1,4 +1,4 @@
-package freddo.dtalk.broker.netty;
+package freddo.dtalk2.broker.netty;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
@@ -16,7 +16,7 @@ import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import freddo.dtalk.DTalkConnection;
+import freddo.dtalk2.DTalkConnection;
 
 public class NettyChannel implements DTalkConnection {
 	private static final Logger LOG = LoggerFactory.getLogger(NettyChannel.class);
@@ -43,6 +43,11 @@ public class NettyChannel implements DTalkConnection {
 
 	WebSocketServerHandshaker getHandshaker() {
 		return mHandshaker;
+	}
+	
+	@Override
+	public String getId() {
+		return (String) getAttribute(ATTR_KEY_CLIENTID);
 	}
 
 	public Object getAttribute(AttributeKey<Object> key) {

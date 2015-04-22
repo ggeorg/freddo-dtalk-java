@@ -1,1 +1,1 @@
-package freddo.dtalk.broker.netty;
+package freddo.dtalk2.broker.netty;

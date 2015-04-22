@@ -1,7 +1,6 @@
-package freddo.dtalk.broker.servlet;
+package freddo.dtalk2.broker.servlet;
 
-import static freddo.dtalk.broker.servlet.ServerEndpointConfigurator.BROKER_MESSAGE_HANDLER_KEY;
-import static freddo.dtalk.broker.servlet.ServerEndpointConfigurator.DTALK_HANDSHAKE_REQUEST_KEY;
+import static freddo.dtalk2.broker.servlet.ServerEndpointConfigurator.DTALK_HANDSHAKE_REQUEST_KEY;
 
 import java.io.IOException;
 import java.util.Enumeration;
@@ -21,15 +20,21 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import freddo.dtalk.DTalkConnection;
-import freddo.dtalk.broker.BrokerMessageHandler;
+import freddo.dtalk2.DTalk;
+import freddo.dtalk2.DTalkConnection;
+import freddo.dtalk2.broker.BrokerMessageHandler;
 
-@ServerEndpoint(value = "/dtalksrv", configurator = ServerEndpointConfigurator.class)
+@ServerEndpoint(value = DTalk.DTALKSRV_PATH, configurator = ServerEndpointConfigurator.class)
 public class DTalkServerEndpoint implements DTalkConnection {
 	private static final Logger LOG = LoggerFactory.getLogger(DTalkServerEndpoint.class);
 
 	private EndpointConfig mConfig;
 	private Session mSession;
+	
+	@Override
+	public String getId() {
+		return mSession.getId();
+	}
 
 	@OnOpen
 	public void onOpen(Session session, EndpointConfig config) {
@@ -65,17 +70,11 @@ public class DTalkServerEndpoint implements DTalkConnection {
 	HandshakeRequest getHandshakeRequest() {
 		return (HandshakeRequest) mConfig.getUserProperties().get(DTALK_HANDSHAKE_REQUEST_KEY);
 	}
-	
-	BrokerMessageHandler getMessageHandler() {
-		return (BrokerMessageHandler) mConfig.getUserProperties().get(BROKER_MESSAGE_HANDLER_KEY);
-	}
 
 	@OnClose
 	public void onClose() {
 		LOG.trace(">>> onClose: {}", mSession.getId());
-
-		// TODO remove connection form connection registry & notify context listener
-
+		DTalk.sendMessage0("DTalkConnectionClosed#" + getId(), this);
 	}
 
 	@OnMessage
@@ -91,7 +90,7 @@ public class DTalkServerEndpoint implements DTalkConnection {
 		}
 
 		// Handle message.
-		getMessageHandler().onMessage(this, message);
+		BrokerMessageHandler.onMessage(this, message);
 	}
 
 	@OnError

@@ -1,4 +1,4 @@
-package freddo.dtalk;
+package freddo.dtalk2;
 
 import java.util.concurrent.Future;
 
@@ -9,6 +9,8 @@ import java.util.concurrent.Future;
  * @author ggeorg
  */
 public interface DTalkConnection {
+
+	String getId();
 
 	Future<Void> sendMessage(String message);
 

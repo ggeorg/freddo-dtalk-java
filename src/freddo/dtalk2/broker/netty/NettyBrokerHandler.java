@@ -1,10 +1,10 @@
-package freddo.dtalk.broker.netty;
+package freddo.dtalk2.broker.netty;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
-import freddo.dtalk.DTalk;
-import freddo.dtalk.broker.BrokerMessageHandler;
+import freddo.dtalk2.DTalk;
+import freddo.dtalk2.broker.BrokerMessageHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
@@ -37,8 +37,6 @@ public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
 
 	private final Map<ChannelHandlerContext, NettyChannel> mChannelMapper =
 			new HashMap<ChannelHandlerContext, NettyChannel>();
-
-	private final BrokerMessageHandler mMessageHandler = new BrokerMessageHandler();
 
 	@Override
 	public void channelRead0(ChannelHandlerContext ctx, Object message) {
@@ -145,7 +143,7 @@ public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
 		// TextWebSocketFrame(message.toUpperCase()));
 
 		// Handle message.
-		mMessageHandler.onMessage(channel, message);
+		BrokerMessageHandler.onMessage(channel, message);
 	}
 
 	private static void sendHttpResponse(ChannelHandlerContext ctx, FullHttpRequest req, FullHttpResponse res) {
