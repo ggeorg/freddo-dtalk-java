@@ -1,1 +1,0 @@
-package freddo.dtalk2.util;
