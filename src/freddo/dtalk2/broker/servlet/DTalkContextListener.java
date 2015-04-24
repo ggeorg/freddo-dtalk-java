@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import freddo.dtalk2.DTalk;
 import freddo.dtalk2.DTalkConfiguration;
 import freddo.dtalk2.broker.Broker;
+import freddo.dtalk2.discovery.MDNS;
 
 public abstract class DTalkContextListener implements ServletContextListener {
 	private static final Logger LOG = LoggerFactory.getLogger(DTalkContextListener.class);
@@ -26,7 +27,18 @@ public abstract class DTalkContextListener implements ServletContextListener {
 			}
 
 			@Override
+			public Class<? extends MDNS> getMDNSClass() {
+				return null;
+			}
+
+			@Override
 			public InetSocketAddress getSocketAddress() {
+				return new InetSocketAddress("localhost", 8888);
+			}
+
+			@Override
+			public String getServiceName() {
+				// TODO Auto-generated method stub
 				return null;
 			}
 		});
