@@ -57,7 +57,7 @@ public class DTalkServerEndpoint implements DTalkConnection {
 				Enumeration<String> e = httpSession.getAttributeNames();
 				while (e.hasMoreElements()) {
 					final String attr = e.nextElement();
-					LOG.debug("Session[%s]: %s", attr, httpSession.getAttribute(attr));
+					LOG.debug("Session[{}]: {}", attr, httpSession.getAttribute(attr));
 				}
 				LOG.debug("=================================");
 			}
@@ -71,6 +71,7 @@ public class DTalkServerEndpoint implements DTalkConnection {
 		return (HandshakeRequest) mConfig.getUserProperties().get(DTALK_HANDSHAKE_REQUEST_KEY);
 	}
 
+	@SuppressWarnings("deprecation")
 	@OnClose
 	public void onClose() {
 		LOG.trace(">>> onClose: {}", mSession.getId());
