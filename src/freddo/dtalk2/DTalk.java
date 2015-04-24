@@ -1,6 +1,11 @@
 package freddo.dtalk2;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -10,9 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.arkasoft.jton.JtonElement;
+import com.arkasoft.jton.JtonObject;
 
 import freddo.dtalk2.broker.Broker;
 import freddo.dtalk2.broker.netty.NettyBroker;
+import freddo.dtalk2.discovery.MDNS;
+import freddo.dtalk2.discovery.jmdns.MDNSImpl;
 import freddo.dtalk2.messaging.Dispatcher;
 import freddo.dtalk2.services.DTalkService;
 import freddo.messagebus.MessageBus;
@@ -42,7 +50,7 @@ public class DTalk {
 		LOG.trace(">>> sendMessage: {}", message);
 		getInstance().mMessageBus.sendMessage(message.getTopic(), message);
 	}
-	
+
 	private static ScheduledExecutorService sScheduledExecutorService = null;
 
 	private static ScheduledExecutorService ensureScheduledExecutorServiceExists() {
@@ -140,12 +148,49 @@ public class DTalk {
 	// Presence
 	//
 
-	public static boolean isLocal(String serviceName) {
-		return false;
+	public static boolean isLocal(String name) {
+		JtonObject presence = getPresence(name);
+		return presence != null ? presence.get("local").getAsBoolean(false) : false;
 	}
 
-	public static boolean hasPresence(String serviceName) {
+	public static boolean hasPresence(String name) {
+		Map<String, JtonObject> presences = getInstance().mPresenceMap;
+		if (presences != null) {
+			synchronized(presences) {
+				return presences.containsKey(name);
+			}
+		}
 		return false;
+	}
+	
+	public static JtonObject getPresence(String name) {
+		Map<String, JtonObject> presences = getInstance().mPresenceMap;
+		if (presences != null) {
+			synchronized(presences) {
+				return presences.get(name);
+			}
+		}
+		return null;
+	}
+	
+	public static JtonObject addPresence(String name, JtonObject presence) {
+		Map<String, JtonObject> presences = getInstance().mPresenceMap;
+		if (presences != null) {
+			synchronized(presences) {
+				return presences.put(name, presence);
+			}
+		}
+		return null;
+	}
+	
+	public static JtonObject removePresence(String name) {
+		Map<String, JtonObject> presences = getInstance().mPresenceMap;
+		if (presences != null) {
+			synchronized(presences) {
+				return presences.remove(name);
+			}
+		}
+		return null;
 	}
 
 	//
@@ -184,6 +229,9 @@ public class DTalk {
 	private Broker mBroker = null;
 
 	private Map<String, DTalkConnection> mConnMap;
+	private Map<String, JtonObject> mPresenceMap;
+
+	private MDNS mMDNSService;
 
 	private DTalk() {
 		// hidden
@@ -210,16 +258,6 @@ public class DTalk {
 
 				mMessageBus = new MessageBus();
 
-				// Dispatcher
-
-				if (mDispatcher != null) {
-					mDispatcher.shutdown();
-					mDispatcher = null;
-				}
-
-				mDispatcher = new Dispatcher();
-				mDispatcher.start();
-
 				// Connections
 
 				if (mConnMap != null) {
@@ -234,6 +272,24 @@ public class DTalk {
 				}
 
 				mConnMap = new ConcurrentHashMap<String, DTalkConnection>();
+				
+				// Presences
+				
+				if (mPresenceMap != null) {
+					mPresenceMap.clear();
+				}
+				
+				mPresenceMap = new ConcurrentHashMap<String, JtonObject>();
+
+				// Dispatcher
+
+				if (mDispatcher != null) {
+					mDispatcher.shutdown();
+					mDispatcher = null;
+				}
+
+				mDispatcher = new Dispatcher();
+				mDispatcher.start();
 
 				// Broker
 
@@ -244,19 +300,26 @@ public class DTalk {
 
 				Class<? extends Broker> brokerCls = config.getBrokerClass();
 				if (brokerCls != null) {
-					mBroker = config.getBrokerClass().newInstance();
+					mBroker = brokerCls.newInstance();
 					mBroker.initialize(config);
 					mBroker.start();
 				}
 
-				// Publish
-
 				// Discovery
 
-			} catch (InstantiationException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
+				if (mMDNSService != null) {
+					mMDNSService.shutdown();
+					mMDNSService = null;
+				}
+
+				Class<? extends MDNS> mDNSCls = config.getMDNSClass();
+				if (mDNSCls != null) {
+					mMDNSService = mDNSCls.newInstance();
+					mMDNSService.initialize(config);
+					mMDNSService.start();
+				}
+
+			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
@@ -280,14 +343,12 @@ public class DTalk {
 
 			mStarted = false;
 
-			if (mBroker != null) {
-				try {
-					mBroker.shutdown();
-				} catch (Exception e) {
-					LOG.error(e.getMessage(), e);
-				} finally {
-					mBroker = null;
-				}
+			try {
+				mMDNSService.shutdown();
+			} catch (Exception e) {
+				LOG.error(e.getMessage(), e);
+			} finally {
+				mMDNSService = null;
 			}
 
 			try {
@@ -298,6 +359,41 @@ public class DTalk {
 				mDispatcher = null;
 			}
 
+			if (mBroker != null) {
+				try {
+					mBroker.shutdown();
+				} catch (Exception e) {
+					LOG.error(e.getMessage(), e);
+				} finally {
+					mBroker = null;
+				}
+			}
+			
+			// Connections
+
+			if (mConnMap != null) {
+				for (DTalkConnection c : mConnMap.values()) {
+					try {
+						c.close();
+					} catch (Exception e) {
+						// ignore
+					}
+				}
+				mConnMap.clear();
+			}
+
+			mConnMap = new ConcurrentHashMap<String, DTalkConnection>();
+			
+			// Presences
+			
+			if (mPresenceMap != null) {
+				mPresenceMap.clear();
+			}
+			
+			mPresenceMap = new ConcurrentHashMap<String, JtonObject>();
+
+			// Message Bus
+			
 			mMessageBus = null;
 		}
 
@@ -315,12 +411,36 @@ public class DTalk {
 			}
 
 			@Override
+			public Class<? extends MDNSImpl> getMDNSClass() {
+				return MDNSImpl.class;
+			}
+
+			@Override
 			public InetSocketAddress getSocketAddress() {
-				return new InetSocketAddress("localhost", 8888);
+				try {
+					return new InetSocketAddress(InetAddress.getLocalHost(), 8888);
+				} catch (UnknownHostException e) {
+					return null;
+				}
+			}
+
+			@Override
+			public String getServiceName() {
+				return "MyService";
 			}
 		});
+		
+		try {
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			for (String input = br.readLine(); input != null;) {
+				DTalk.shutdown();
+				break;
+			}
+		} catch (IOException io) {
+			io.printStackTrace();
+		}
 
-		LOG.debug("OK");
+		LOG.debug("Done!!!");
 	}
 
 }
