@@ -17,7 +17,7 @@ public abstract class DTalkContextListener implements ServletContextListener {
 	private static final Logger LOG = LoggerFactory.getLogger(DTalkContextListener.class);
 	
 	@Override
-	public void contextInitialized(ServletContextEvent sce) {
+	public void contextInitialized(final ServletContextEvent sce) {
 		LOG.trace(">>> contextInitialized: {}", sce.getServletContext().getContextPath());
 		
 		DTalk.start(new DTalkConfiguration() {
@@ -38,7 +38,6 @@ public abstract class DTalkContextListener implements ServletContextListener {
 
 			@Override
 			public String getServiceName() {
-				// TODO Auto-generated method stub
 				return null;
 			}
 		});

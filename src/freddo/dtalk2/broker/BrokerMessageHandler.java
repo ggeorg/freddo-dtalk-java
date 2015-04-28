@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import com.arkasoft.jton.JtonArray;
 import com.arkasoft.jton.JtonElement;
-import com.arkasoft.jton.JtonParser;
+import com.arkasoft.jton.serialization.JsonSerializer;
 
 import freddo.dtalk2.DTalk;
 import freddo.dtalk2.DTalkConnection;
@@ -16,7 +16,7 @@ public final class BrokerMessageHandler {
 
 	public static void onMessage(DTalkConnection conn, String message) {
 		try {
-			JtonElement jtonElem = JtonParser.parse(message);
+			JtonElement jtonElem = JsonSerializer.parse(message);
 			if (jtonElem.isJtonObject()) {
 				onMessage(new InboundMessage(conn, jtonElem.getAsJtonObject()));
 			} else if (jtonElem.isJtonArray()) {
