@@ -13,24 +13,23 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package freddo.dtalk2;
+package freddo.dtalk2.messaging;
 
-import java.util.concurrent.Future;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * A construct that provides the means to send an ordered, lossless, stream of
- * bytes in both directions.
- * 
- * @author ggeorg
- */
-public interface DTalkConnection {
+import freddo.dtalk2.DTalk;
+import freddo.dtalk2.DTalkMessage;
+import freddo.messagebus.MessageBusListener;
 
-	String getName();
-	
-	void setName(String name);
+class InboundMsgHandler implements MessageBusListener<DTalkMessage> {
+	private static final Logger LOG = LoggerFactory.getLogger(InboundMsgHandler.class);
 
-	Future<Void> sendMessage(String message);
-
-	void close();
+	@SuppressWarnings("deprecation")
+	@Override
+	public void messageSent(DTalkMessage message) {
+		LOG.trace(">>> messageSent: {}", message);
+		DTalk.sendMessage(message.getService(), message);
+	}
 
 }

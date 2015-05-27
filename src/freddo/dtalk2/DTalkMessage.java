@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013-2015 ArkaSoft LLC.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package freddo.dtalk2;
 
 import com.arkasoft.jton.JtonElement;
@@ -10,15 +25,15 @@ public class DTalkMessage {
 	public static interface Handler extends MessageBusListener<DTalkMessage> {
 		String getTopic();
 	}
-	
+
 	public static class Error {
-		
+
 		private final JtonObject mError;
-		
+
 		Error(JtonObject error) {
 			mError = error;
 		}
-		
+
 		public int getCode() {
 			return mError.get(KEY_ERROR_CODE).getAsInt(0);
 		}
@@ -26,7 +41,7 @@ public class DTalkMessage {
 		public String getMessage() {
 			return mError.get(KEY_ERROR_MESSAGE).getAsString(null);
 		}
-		
+
 		public JtonElement getData() {
 			return mError.get(KEY_ERROR_DATA);
 		}
@@ -41,22 +56,37 @@ public class DTalkMessage {
 	public static final String KEY_ID = "id";
 	public static final String KEY_PARAMS = "params";
 	public static final String KEY_RESULT = "result";
+	public static final String KEY_SERVICE = "service";
 	public static final String KEY_TO = "to";
-	public static final String KEY_TOPIC = "topic";
 	public static final String KEY_VERSION = "dtalk";
 
+	private final DTalkConnection mConnection;
 	private final JtonObject mMessage;
 
 	public DTalkMessage() {
-		mMessage = new JtonObject();
+		this(null, new JtonObject());
 	}
 
-	protected DTalkMessage(JtonObject message) {
+	public DTalkMessage(JtonObject message) {
+		this(null, message);
+	}
+
+	public DTalkMessage(DTalkConnection conn, JtonObject message) {
+		mConnection = conn;
 		mMessage = message;
 	}
+	
+	public DTalkMessage(DTalkMessage message) {
+		if (message != null) {
+			mConnection = message.mConnection;
+			mMessage = message.mMessage != null ? message.mMessage.deepCopy() : null;
+		} else {
+			throw new NullPointerException("DTalkMessage is null");
+		}
+	}
 
-	protected DTalkMessage(DTalkMessage message) {
-		mMessage = message.mMessage;
+	public DTalkConnection getConnection() {
+		return mConnection;
 	}
 
 	public int getVersion() {
@@ -91,12 +121,12 @@ public class DTalkMessage {
 		mMessage.add(KEY_ID, id);
 	}
 
-	public String getTopic() {
-		return mMessage.get(KEY_TOPIC).getAsString(null);
+	public String getService() {
+		return mMessage.get(KEY_SERVICE).getAsString(null);
 	}
 
-	public void setTopic(String topic) {
-		mMessage.add(KEY_TOPIC, topic);
+	public void setService(String topic) {
+		mMessage.add(KEY_SERVICE, topic);
 	}
 
 	public String getAction() {
@@ -122,7 +152,7 @@ public class DTalkMessage {
 	public void setResult(JtonElement result) {
 		mMessage.add(KEY_RESULT, result);
 	}
-	
+
 	public Error getError() {
 		JtonObject error = mMessage.get(KEY_ERROR).getAsJtonObject(null);
 		return error != null ? new Error(error) : null;

@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013-2015 ArkaSoft LLC.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package freddo.dtalk2.broker.netty;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.HOST;
@@ -68,42 +83,38 @@ public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
 	private void handleHttpRequest(ChannelHandlerContext ctx, FullHttpRequest req) {
 		LOG.trace(">>> handleHttpRequest: {}", req.getUri());
 
-		// Handle a bad request.
 		if (!req.getDecoderResult().isSuccess()) {
-			sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
-			return;
-		}
 
-		// WebSocket Handshake
-		if (req.getMethod() == HttpMethod.GET && req.getUri().startsWith(DTalk.DTALKSRV_PATH)) {
-			WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true);
-			WebSocketServerHandshaker handshaker = wsFactory.newHandshaker(req);
-			if (handshaker == null) {
-				WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
-			} else {
-				// TODO default authentication here
-				handshaker.handshake(ctx.channel(), req);
-				synchronized (mChannelMapper) {
-					NettyChannel channel = new NettyChannel(ctx, handshaker);
-					channel.setIdleTime(60);
-					mChannelMapper.put(ctx, channel);
+			// WebSocket Handshake
+			if (req.getMethod() == HttpMethod.GET && req.getUri().startsWith(DTalk.DTALKSRV_PATH)) {
+				WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true);
+				WebSocketServerHandshaker handshaker = wsFactory.newHandshaker(req);
+				if (handshaker == null) {
+					WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
+				} else {
+					handshaker.handshake(ctx.channel(), req);
+					synchronized (mChannelMapper) {
+						NettyChannel channel = new NettyChannel(ctx, handshaker);
+						channel.setIdleTime(60);
+						mChannelMapper.put(ctx, channel);
+					}
 				}
 			}
-		} else {
-			// TODO
 		}
+
+		sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
 	}
 
 	private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) {
 		LOG.trace(">>> handleWebSocketFrame: {}", frame);
 
-		// Check for ping frame
+		// Check for PING frame
 		if (frame instanceof PingWebSocketFrame) {
 			ctx.channel().write(new PongWebSocketFrame(frame.content().retain()));
 			return;
 		}
 
-		// Check for pong frame
+		// Check for PONG frame
 		if (frame instanceof PongWebSocketFrame) {
 			return;
 		}
@@ -121,7 +132,7 @@ public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
 			return;
 		}
 
-		// Reject binary frames
+		// Reject anything except text frames
 		if (!(frame instanceof TextWebSocketFrame)) {
 			LOG.warn("{} frame types not supported", frame.getClass().getName());
 			return;
@@ -130,17 +141,7 @@ public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
 		// Get message
 		String message = ((TextWebSocketFrame) frame).text();
 		message = StringUtils.deleteWhitespace(message);
-
-		if (LOG.isDebugEnabled()) {
-			String _message = message;
-			if (_message.length() > 64) {
-				_message = _message.substring(0, 64) + "...";
-			}
-			LOG.debug("message: {}", _message);
-		}
-
-		// ctx.channel().writeAndFlush(new
-		// TextWebSocketFrame(message.toUpperCase()));
+		LOG.debug("message: {}", message);
 
 		// Handle message.
 		BrokerMessageHandler.onMessage(channel, message);

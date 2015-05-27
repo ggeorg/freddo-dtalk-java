@@ -13,24 +13,19 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package freddo.dtalk2;
+package freddo.dtalk2.services;
 
-import java.util.concurrent.Future;
+public class DTalkPresence extends DTalkService {
+	public static final String NAME = "dtalk.Presence";
 
-/**
- * A construct that provides the means to send an ordered, lossless, stream of
- * bytes in both directions.
- * 
- * @author ggeorg
- */
-public interface DTalkConnection {
+	public DTalkPresence(String topic) {
+		super(topic);
+	}
 
-	String getName();
-	
-	void setName(String name);
-
-	Future<Void> sendMessage(String message);
-
-	void close();
+	@Override
+	protected void onShutdown() {
+		// TODO Auto-generated method stub
+		
+	}
 
 }

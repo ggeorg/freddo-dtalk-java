@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013-2015 ArkaSoft LLC.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package freddo.dtalk2.broker.netty;
 
 import io.netty.buffer.Unpooled;
@@ -31,6 +46,8 @@ public class NettyChannel implements DTalkConnection {
 
 	private final ChannelHandlerContext mChannel;
 	private final WebSocketServerHandshaker mHandshaker;
+	
+	private String mName;
 
 	NettyChannel(ChannelHandlerContext ctx, WebSocketServerHandshaker handshaker) {
 		mChannel = ctx;
@@ -46,8 +63,13 @@ public class NettyChannel implements DTalkConnection {
 	}
 	
 	@Override
-	public String getId() {
-		return (String) getAttribute(ATTR_KEY_CLIENTID);
+	public String getName() {
+		return mName != null ? mName : (String) getAttribute(ATTR_KEY_CLIENTID);
+	}
+	
+	@Override
+	public void setName(String id) {
+		mName = id;
 	}
 
 	public Object getAttribute(AttributeKey<Object> key) {

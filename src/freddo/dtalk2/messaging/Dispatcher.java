@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013-2015 ArkaSoft LLC.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package freddo.dtalk2.messaging;
 
 import java.util.Map;
@@ -11,7 +26,6 @@ import com.arkasoft.jton.JtonElement;
 import freddo.dtalk2.DTalk;
 import freddo.dtalk2.DTalkMessage;
 import freddo.dtalk2.HandlerRegistration;
-import freddo.dtalk2.services.DTalkAction;
 import freddo.dtalk2.services.DTalkService;
 
 public class Dispatcher extends DTalkService {
@@ -20,10 +34,10 @@ public class Dispatcher extends DTalkService {
 	private HandlerRegistration mInboundMessageHR = null;
 	private HandlerRegistration mOutboundMessageHR = null;
 
-	private final Map<String, Subscriber> mSubscribers;
+	final Map<String, Subscriber> mSubscribers;
 
 	public Dispatcher() {
-		super("dtalk.service.Dispatcher");
+		super("dtalk.Dispatcher");
 		mSubscribers = new ConcurrentHashMap<String, Subscriber>();
 	}
 
@@ -38,31 +52,23 @@ public class Dispatcher extends DTalkService {
 		mSubscribers.clear();
 	}
 
-	@DTalkAction(name = "subscribe")
+	// @DTalkAction(name = "subscribe")
 	public void subscribe(DTalkMessage message) {
-		LOG.trace(">>> doSubscribe: {}", message);
+		LOG.trace(">>> subscribe: {}", message);
 		JtonElement params = message.getParams();
 		if (params != null) {
 			if (params.isJtonPrimitive()) {
 				String topic = params.getAsString(null);
 				if (topic != null) {
-					String regKey = topic;
-					if (message instanceof InboundMessage) {
-						InboundMessage _message = (InboundMessage) message;
-						@SuppressWarnings("deprecation")
-						String connection = _message.getConnection().getId();
-						String from = message.getFrom();
-						if (from != null && DTalk.hasPresence(from)) {
-							regKey += ("@" + from);
-							subscribe(regKey, topic, from);
-						} else {
-							regKey += ("@" + connection);
-							subscribe(regKey, topic, connection);
-						}
-
-						// TODO return...
-						DTalk.fireEvent(this, "onsubscribe", params);
+					LOG.debug("Subscibe: topic='{}'", topic);
+					String from = message.getFrom();
+					if (from != null && DTalk.hasPresence(from)) {
+						String regKey = String.format("%s@%s", topic, from);
+						subscribe(regKey, topic, from);
 					}
+
+					// TODO return...
+					DTalk.fireEvent(this, "onsubscribe", params);
 				}
 			}
 		}
@@ -72,15 +78,15 @@ public class Dispatcher extends DTalkService {
 		synchronized (mSubscribers) {
 			if (!mSubscribers.containsKey(regKey)) {
 				LOG.debug("New subscription: {}", regKey);
-				mSubscribers.put(regKey, new Subscriber(topic, target));
+				mSubscribers.put(regKey, new Subscriber(this, topic, target));
 			} else {
 				LOG.debug("Increase refCnt: {}", regKey);
 				mSubscribers.get(regKey).incRefCnt();
 			}
 		}
 	}
-	
-	@DTalkAction(name = "unsubscribe")
+
+	// @DTalkAction(name = "unsubscribe")
 	public void unsubscribe(DTalkMessage message) {
 		LOG.trace(">>> unsubscribe: {}", message);
 		JtonElement params = message.getParams();
@@ -88,22 +94,14 @@ public class Dispatcher extends DTalkService {
 			if (params.isJtonPrimitive()) {
 				String topic = params.getAsString(null);
 				if (topic != null) {
-					String regKey = topic;
-					if (message instanceof InboundMessage) {
-						InboundMessage _message = (InboundMessage) message;
-						@SuppressWarnings("deprecation")
-						String connection = _message.getConnection().getId();
-						String from = message.getFrom();
-						if (from != null && DTalk.hasPresence(from)) {
-							regKey += ("@" + from);
-							unsubscribe(regKey);
-						} else {
-							regKey += ("@" + connection);
-							unsubscribe(regKey);
-						}
-
-						// TODO return...
+					String from = message.getFrom();
+					if (from != null && DTalk.hasPresence(from)) {
+						String regKey = String.format("%s@%s", topic, from);
+						unsubscribe(regKey);
 					}
+
+					// TODO return...
+					DTalk.fireEvent(this, "onunsubscribe", params);
 				}
 			}
 		}
@@ -126,8 +124,8 @@ public class Dispatcher extends DTalkService {
 
 	@SuppressWarnings("deprecation")
 	private void addHandlers() {
-		mInboundMessageHR = DTalk.subscribe0(InboundMessage.class, new InboundMessageHandler());
-		mOutboundMessageHR = DTalk.subscribe0(OutboundMessage.class, new OutboundMessageHandler());
+		mInboundMessageHR = DTalk.subscribe(DTalk.DTALK_INBOUND_MSG, new InboundMsgHandler());
+		mOutboundMessageHR = DTalk.subscribe(DTalk.DTALK_OUTBOUND_MSG, new OutboundMsgHandler());
 	}
 
 	private void removeHandlers() {

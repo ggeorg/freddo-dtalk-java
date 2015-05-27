@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013-2015 ArkaSoft LLC.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package freddo.dtalk2;
 
 import java.io.BufferedReader;
@@ -28,6 +43,9 @@ import freddo.messagebus.MessageBusListener;
 
 public class DTalk {
 	private static final Logger LOG = LoggerFactory.getLogger(DTalk.class);
+	
+	public static final String DTALK_INBOUND_MSG = "dtalk.InboundMsg";
+	public static final String DTALK_OUTBOUND_MSG = "dtalk.OutboundMsg";
 
 	private static volatile DTalk sInstance = null;
 
@@ -48,7 +66,41 @@ public class DTalk {
 
 	public static void sendMessage(DTalkMessage message) {
 		LOG.trace(">>> sendMessage: {}", message);
-		getInstance().mMessageBus.sendMessage(message.getTopic(), message);
+		
+		DTalk dTalk = getInstance();
+		if (!dTalk.mStarted) {
+			LOG.warn("DTalk not started.");
+			return;
+		}
+		
+		String from = message.getFrom();
+		if (from == null) {
+			from = dTalk.getPublishedName();
+		}
+		
+		String to = message.getTo();
+		String service = message.getService();
+		if ("dtalk.Dispatcher".equals(service)) {
+			String action = message.getAction();
+			if ("subscribe".equals(action)) {
+				dTalk.mDispatcher.subscribe(message);
+			} else if ("unsubscribe".equals(action)) {
+				dTalk.mDispatcher.unsubscribe(message);
+			}
+			
+			// Local dispatcher? If yes return.
+			if (to == null || to.equals(dTalk.getPublishedName())) {
+				return;
+			}
+		}
+		
+		if (to != null && !to.equals(dTalk.getPublishedName())) {
+			LOG.debug("Outbound Message: {}", message);
+			dTalk.mMessageBus.sendMessage(DTALK_OUTBOUND_MSG, message);
+		} else {
+			LOG.debug("Inbound Message: {}", message);
+			dTalk.mMessageBus.sendMessage(DTALK_INBOUND_MSG, message);
+		}
 	}
 
 	private static ScheduledExecutorService sScheduledExecutorService = null;
@@ -70,7 +122,7 @@ public class DTalk {
 		LOG.trace(">>> sendResponse: {}", message);
 		DTalkMessage _response = new DTalkMessage();
 		_response.setVersion(DTalk.VERSION);
-		_response.setTopic(message.getId());
+		_response.setService(message.getId());
 		_response.setResult(response);
 		String from = message.getFrom();
 		if (from != null) {
@@ -85,7 +137,7 @@ public class DTalk {
 		sb.append('$').append(source.getTopic()).append('#').append(type);
 		DTalkMessage _response = new DTalkMessage();
 		_response.setVersion(DTalk.VERSION);
-		_response.setTopic(sb.toString());
+		_response.setService(sb.toString());
 		_response.setParams(params);
 		sendMessage(_response);
 	}
@@ -105,24 +157,13 @@ public class DTalk {
 	//
 
 	@Deprecated
-	public static <T> void sendMessage0(T message) {
-		LOG.trace(">>> sendMessage: {} ({})", message, Thread.currentThread());
-		getInstance().mMessageBus.sendMessage(message);
-	}
-
-	@Deprecated
-	public static <T> void sendMessage0(String topic, T message) {
+	public static <T> void sendMessage(String topic, T message) {
 		LOG.trace(">>> sendMessage: {}->{} ({})", topic, message, Thread.currentThread());
 		getInstance().mMessageBus.sendMessage(message);
 	}
 
 	@Deprecated
-	public static <T> HandlerRegistration subscribe0(final Class<? super T> topic, final MessageBusListener<T> listener) {
-		return subscribe0(topic.getName(), listener);
-	}
-
-	@Deprecated
-	public static <T> HandlerRegistration subscribe0(final String topic, final MessageBusListener<T> listener) {
+	public static <T> HandlerRegistration subscribe(final String topic, final MessageBusListener<T> listener) {
 		getInstance().mMessageBus.subscribe(topic, listener);
 		return new HandlerRegistration() {
 			@Override
@@ -147,10 +188,9 @@ public class DTalk {
 	//
 	// Presence
 	//
-
-	public static boolean isLocal(String name) {
-		JtonObject presence = getPresence(name);
-		return presence != null ? presence.get("local").getAsBoolean(false) : false;
+	
+	public String getPublishedName() {
+		return mMDNSService != null ? mMDNSService.getPublishedName() : null;
 	}
 
 	public static boolean hasPresence(String name) {
@@ -197,11 +237,11 @@ public class DTalk {
 	// Connections
 	//
 
-	public static DTalkConnection addConnection(String target, DTalkConnection connection) {
+	public static DTalkConnection addConnection(DTalkConnection connection) {
 		Map<String, DTalkConnection> conns = getInstance().mConnMap;
 		if (conns != null) {
 			synchronized (conns) {
-				return conns.put(target, connection);
+				return conns.put(connection.getName(), connection);
 			}
 		}
 		return null;

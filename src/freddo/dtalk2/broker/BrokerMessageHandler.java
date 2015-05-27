@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013-2015 ArkaSoft LLC.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package freddo.dtalk2.broker;
 
 import org.slf4j.Logger;
@@ -9,7 +24,7 @@ import com.arkasoft.jton.serialization.JsonSerializer;
 
 import freddo.dtalk2.DTalk;
 import freddo.dtalk2.DTalkConnection;
-import freddo.dtalk2.messaging.InboundMessage;
+import freddo.dtalk2.DTalkMessage;
 
 public final class BrokerMessageHandler {
 	private static final Logger LOG = LoggerFactory.getLogger(BrokerMessageHandler.class);
@@ -18,7 +33,7 @@ public final class BrokerMessageHandler {
 		try {
 			JtonElement jtonElem = JsonSerializer.parse(message);
 			if (jtonElem.isJtonObject()) {
-				onMessage(new InboundMessage(conn, jtonElem.getAsJtonObject()));
+				onMessage(new DTalkMessage(conn, jtonElem.getAsJtonObject()));
 			} else if (jtonElem.isJtonArray()) {
 				onMessage(conn, jtonElem.getAsJtonArray());
 			}
@@ -30,27 +45,31 @@ public final class BrokerMessageHandler {
 	private static void onMessage(DTalkConnection conn, JtonArray jtonArray) {
 		for (JtonElement jtonElem_i : jtonArray.getAsJtonArray()) {
 			if (jtonElem_i.isJtonObject()) {
-				onMessage(new InboundMessage(conn, jtonElem_i.getAsJtonObject()));
+				onMessage(new DTalkMessage(conn, jtonElem_i.getAsJtonObject()));
 			}
 		}
 	}
 
 	@SuppressWarnings("deprecation")
-	private static void onMessage(InboundMessage message) {
+	private static void onMessage(DTalkMessage message) {
 		LOG.trace(">>> onMessage: {}", message);
 		try {
+			String from = message.getFrom();
+			if (from == null) {
+				message.setFrom(message.getConnection().getName());
+			}
+			
 			int version = message.getVersion();
 			if (version == 2) {
-				String topic = message.getTopic();
-				String action = message.getAction();
-				if (topic == null) {
+				String service = message.getService();
+				if (service == null) {
+					String action = message.getAction();
 					if ("connect".equals(action)) {
 						LOG.debug("Handle CONNECT");
-						String regKey = message.getFrom();
-						if (regKey == null) {
-							regKey = message.getConnection().getId();
+						if (from != null) {
+							message.getConnection().setName(from);
 						}
-						DTalk.addConnection(regKey, message.getConnection());
+						DTalk.addConnection(message.getConnection());
 						// TODO reply with OK or ERROR
 					} else {
 						// TODO if not authenticated reply with ERROR
@@ -60,10 +79,10 @@ public final class BrokerMessageHandler {
 						}
 					}
 				} else {
-					DTalk.sendMessage0(message);
+					DTalk.sendMessage(message);
 				}
 			} else {
-				// TODO dtalk != 2 not supported
+				LOG.warn("DTalk version '{}' not supported.", version);
 			}
 		} catch (Exception e) {
 			LOG.error(e.getMessage(), e);
