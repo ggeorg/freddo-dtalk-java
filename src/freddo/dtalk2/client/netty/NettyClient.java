@@ -39,8 +39,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import freddo.dtalk2.DTalkConnection;
+import freddo.dtalk2.client.ClientConnection;
 
-public class NettyClient implements DTalkConnection {
+public class NettyClient implements ClientConnection {
 	private static final Logger LOG = LoggerFactory.getLogger(NettyClient.class);
 
 	private final String mName;

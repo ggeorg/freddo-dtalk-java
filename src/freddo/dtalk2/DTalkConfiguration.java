@@ -15,19 +15,21 @@
  */
 package freddo.dtalk2;
 
-import java.net.InetSocketAddress;
+import java.net.InetAddress;
 
 import freddo.dtalk2.broker.Broker;
-import freddo.dtalk2.discovery.MDNS;
+import freddo.dtalk2.discovery.ZeroconfService;
 
 public interface DTalkConfiguration {
-
-	Class<? extends Broker> getBrokerClass();
-
-	Class<? extends MDNS> getMDNSClass();
 	
-	InetSocketAddress getSocketAddress();
-
+	int getPort();
+	
+	InetAddress getAddress();
+	
 	String getServiceName();
+
+	Broker getBroker();
+
+	ZeroconfService getZeroconfService();
 
 }

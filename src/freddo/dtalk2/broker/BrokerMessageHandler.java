@@ -50,9 +50,9 @@ public final class BrokerMessageHandler {
 		}
 	}
 
-	@SuppressWarnings("deprecation")
 	private static void onMessage(DTalkMessage message) {
 		LOG.trace(">>> onMessage: {}", message);
+		
 		try {
 			String from = message.getFrom();
 			if (from == null) {
@@ -60,9 +60,9 @@ public final class BrokerMessageHandler {
 			}
 			
 			int version = message.getVersion();
-			if (version == 2) {
+			if (version == 1 || version == 2) {
 				String service = message.getService();
-				if (service == null) {
+				if (service == null || service.trim().length() == 0) {
 					String action = message.getAction();
 					if ("connect".equals(action)) {
 						LOG.debug("Handle CONNECT");
@@ -89,6 +89,9 @@ public final class BrokerMessageHandler {
 		}
 	}
 	
+	/**
+	 * Default constructor.
+	 */
 	private BrokerMessageHandler() {
 		// hidden
 	}

@@ -15,7 +15,7 @@
  */
 package freddo.dtalk2.broker.servlet;
 
-import java.net.InetSocketAddress;
+import java.net.InetAddress;
 
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -26,29 +26,34 @@ import org.slf4j.LoggerFactory;
 import freddo.dtalk2.DTalk;
 import freddo.dtalk2.DTalkConfiguration;
 import freddo.dtalk2.broker.Broker;
-import freddo.dtalk2.discovery.MDNS;
+import freddo.dtalk2.discovery.ZeroconfService;
 
 public abstract class DTalkContextListener implements ServletContextListener {
 	private static final Logger LOG = LoggerFactory.getLogger(DTalkContextListener.class);
-	
+
 	@Override
 	public void contextInitialized(final ServletContextEvent sce) {
 		LOG.trace(">>> contextInitialized: {}", sce.getServletContext().getContextPath());
-		
+
 		DTalk.start(new DTalkConfiguration() {
 			@Override
-			public Class<? extends Broker> getBrokerClass() {
+			public int getPort() {
+				return 0;
+			}
+
+			@Override
+			public InetAddress getAddress() {
+				return null;
+			}
+			
+			@Override
+			public Broker getBroker() {
 				return null;
 			}
 
 			@Override
-			public Class<? extends MDNS> getMDNSClass() {
+			public ZeroconfService getZeroconfService() {
 				return null;
-			}
-
-			@Override
-			public InetSocketAddress getSocketAddress() {
-				return new InetSocketAddress("localhost", 8888);
 			}
 
 			@Override
@@ -56,9 +61,8 @@ public abstract class DTalkContextListener implements ServletContextListener {
 				return null;
 			}
 		});
-		
 	}
-	
+
 	@Override
 	public void contextDestroyed(ServletContextEvent sce) {
 		LOG.trace(">>> contextDestroyed: {}", sce.getServletContext().getContextPath());

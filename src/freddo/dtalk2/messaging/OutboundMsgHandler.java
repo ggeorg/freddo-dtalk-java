@@ -44,15 +44,24 @@ class OutboundMsgHandler implements MessageBusListener<DTalkMessage> {
 		
 		// Get connection.
 		DTalkConnection conn = DTalk.getConnection(to);
+		LOG.debug("Connection for '{}': {}", to, conn);
 		
-		// Create a new client connection if null.
-		if (conn == null) {
-			DTalk.getPresence(to);
+		if (null == conn) {
+			// Create a new client connection.
+			// Only for discovered presences; NO NEED TO SEND 'connect'.
+			conn = DTalk.connectTo(to);
+			if (conn != null) {
+				DTalk.addConnection(conn);
+			}
 		}
 		
-		if (conn != null) {
-			//message.setFrom(DTalk.getLocal());
-			conn.sendMessage(clonedMsg.toString());
+		if (null != conn) {
+			try {
+				conn.sendMessage(clonedMsg.toString()).get();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		
 	}

@@ -38,9 +38,6 @@ import freddo.dtalk2.broker.Broker;
 public class NettyBroker implements Broker {
 	private static final Logger LOG = LoggerFactory.getLogger(NettyBroker.class);
 
-	private static final String sDefaultHost = "localhost";
-	private static final int sDefaultPort = 0;
-
 	private NioEventLoopGroup mBossGroup;
 	private NioEventLoopGroup mWorkerGroup;
 
@@ -52,12 +49,9 @@ public class NettyBroker implements Broker {
 
 	@Override
 	public void initialize(DTalkConfiguration config) {
+		mSocketAddress = new InetSocketAddress(config.getAddress(), config.getPort());
 		mBossGroup = new NioEventLoopGroup();
 		mWorkerGroup = new NioEventLoopGroup();
-		mSocketAddress = config.getSocketAddress();
-		if (mSocketAddress == null) {
-			mSocketAddress = new InetSocketAddress(sDefaultHost, sDefaultPort);
-		}
 	}
 
 	@Override

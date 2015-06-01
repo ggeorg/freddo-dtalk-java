@@ -15,6 +15,8 @@
  */
 package freddo.dtalk2.client;
 
-public interface Client {
+import freddo.dtalk2.DTalkConnection;
+
+public interface ClientConnection extends DTalkConnection {
 
 }

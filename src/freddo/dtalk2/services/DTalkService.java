@@ -40,7 +40,7 @@ public abstract class DTalkService implements DTalkMessage.Handler {
 
 	public DTalkService(String topic) {
 		mTopic = topic;
-		mReplyPrefix = String.format("$%s.", topic);
+		mReplyPrefix = String.format("$%s#", topic);
 		mHR = DTalk.subscribe(this);
 	}
 
@@ -58,11 +58,11 @@ public abstract class DTalkService implements DTalkMessage.Handler {
 			if (method != null) {
 				try {
 					Object response = method.invoke(this, message);
-					if (message.getId() != null) {
-						DTalk.sendResponse(message, (JtonElement) response);
+					if (response != null && message.getId() != null) {
+						sendResponse(message, (JtonElement) response);
 					}
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
+					LOG.error("Method invocation failed: {}", method);
 					e.printStackTrace();
 				}
 			} else {
@@ -107,5 +107,31 @@ public abstract class DTalkService implements DTalkMessage.Handler {
 	}
 
 	protected abstract void onShutdown();
+	
+	// ---
+	
+	protected void sendResponse(DTalkMessage request, JtonElement response) {
+		LOG.trace(">>> sendResponse: {}", response);
+		DTalkMessage _response = new DTalkMessage();
+		_response.setVersion(DTalk.VERSION);
+		_response.setService(request.getId());
+		_response.setResult(response);
+		String from = request.getFrom();
+		if (from != null) {
+			_response.setTo(from);
+		}
+		DTalk.sendMessage(_response);
+	}
+	
+	protected void fireEvent(String type, JtonElement params) {
+		LOG.trace(">>> fireEvent: {}", type);
+		StringBuilder sb = new StringBuilder();
+		sb.append(mReplyPrefix).append(type);
+		DTalkMessage _response = new DTalkMessage();
+		_response.setVersion(DTalk.VERSION);
+		_response.setService(sb.toString());
+		_response.setParams(params);
+		DTalk.sendMessage(_response);
+	}
 
 }

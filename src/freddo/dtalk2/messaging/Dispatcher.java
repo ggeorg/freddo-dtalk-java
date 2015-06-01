@@ -68,7 +68,7 @@ public class Dispatcher extends DTalkService {
 					}
 
 					// TODO return...
-					DTalk.fireEvent(this, "onsubscribe", params);
+					fireEvent("onsubscribe", params);
 				}
 			}
 		}
@@ -101,7 +101,7 @@ public class Dispatcher extends DTalkService {
 					}
 
 					// TODO return...
-					DTalk.fireEvent(this, "onunsubscribe", params);
+					fireEvent("onunsubscribe", params);
 				}
 			}
 		}

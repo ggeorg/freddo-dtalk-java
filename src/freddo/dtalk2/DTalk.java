@@ -19,7 +19,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,20 +30,23 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.arkasoft.jton.JtonElement;
 import com.arkasoft.jton.JtonObject;
 
 import freddo.dtalk2.broker.Broker;
 import freddo.dtalk2.broker.netty.NettyBroker;
-import freddo.dtalk2.discovery.MDNS;
-import freddo.dtalk2.discovery.jmdns.MDNSImpl;
+import freddo.dtalk2.client.ClientConnection;
+import freddo.dtalk2.client.netty.NettyClient;
+import freddo.dtalk2.discovery.ZeroconfService;
+import freddo.dtalk2.discovery.jmdns.ZeroconfServiceImpl;
 import freddo.dtalk2.messaging.Dispatcher;
-import freddo.dtalk2.services.DTalkService;
 import freddo.messagebus.MessageBus;
 import freddo.messagebus.MessageBusListener;
 
 public class DTalk {
 	private static final Logger LOG = LoggerFactory.getLogger(DTalk.class);
+	
+	public static final String DTALKSRV_PATH = "/dtalksrv";
+	public static final int VERSION = 1;
 	
 	public static final String DTALK_INBOUND_MSG = "dtalk.InboundMsg";
 	public static final String DTALK_OUTBOUND_MSG = "dtalk.OutboundMsg";
@@ -96,10 +100,10 @@ public class DTalk {
 		
 		if (to != null && !to.equals(dTalk.getPublishedName())) {
 			LOG.debug("Outbound Message: {}", message);
-			dTalk.mMessageBus.sendMessage(DTALK_OUTBOUND_MSG, message);
+			MessageBus.sendMessage(DTALK_OUTBOUND_MSG, message);
 		} else {
 			LOG.debug("Inbound Message: {}", message);
-			dTalk.mMessageBus.sendMessage(DTALK_INBOUND_MSG, message);
+			MessageBus.sendMessage(DTALK_INBOUND_MSG, message);
 		}
 	}
 
@@ -118,36 +122,12 @@ public class DTalk {
 		request.send(ensureScheduledExecutorServiceExists(), 33333L);
 	}
 
-	public static void sendResponse(DTalkMessage message, JtonElement response) {
-		LOG.trace(">>> sendResponse: {}", message);
-		DTalkMessage _response = new DTalkMessage();
-		_response.setVersion(DTalk.VERSION);
-		_response.setService(message.getId());
-		_response.setResult(response);
-		String from = message.getFrom();
-		if (from != null) {
-			_response.setFrom(from);
-		}
-		sendMessage(_response);
-	}
-
-	public static void fireEvent(DTalkService source, String type, JtonElement params) {
-		LOG.trace(">>> fireEvent: {}", type);
-		StringBuilder sb = new StringBuilder();
-		sb.append('$').append(source.getTopic()).append('#').append(type);
-		DTalkMessage _response = new DTalkMessage();
-		_response.setVersion(DTalk.VERSION);
-		_response.setService(sb.toString());
-		_response.setParams(params);
-		sendMessage(_response);
-	}
-
 	public static HandlerRegistration subscribe(final DTalkMessage.Handler handler) {
-		getInstance().mMessageBus.subscribe(handler.getTopic(), handler);
+		MessageBus.subscribe(handler.getTopic(), handler);
 		return new HandlerRegistration() {
 			@Override
 			public void removeHandler() {
-				getInstance().mMessageBus.unsubscribe(handler.getTopic(), handler);
+				MessageBus.unsubscribe(handler.getTopic(), handler);
 			}
 		};
 	}
@@ -158,17 +138,17 @@ public class DTalk {
 
 	@Deprecated
 	public static <T> void sendMessage(String topic, T message) {
-		LOG.trace(">>> sendMessage: {}->{} ({})", topic, message, Thread.currentThread());
-		getInstance().mMessageBus.sendMessage(message);
+		LOG.trace(">>> sendMessage: topic='{}', message='{}' (Thread: {})", topic, message, Thread.currentThread());
+		MessageBus.sendMessage(topic, message);
 	}
 
 	@Deprecated
 	public static <T> HandlerRegistration subscribe(final String topic, final MessageBusListener<T> listener) {
-		getInstance().mMessageBus.subscribe(topic, listener);
+		MessageBus.subscribe(topic, listener);
 		return new HandlerRegistration() {
 			@Override
 			public void removeHandler() {
-				getInstance().mMessageBus.unsubscribe(topic, listener);
+				MessageBus.unsubscribe(topic, listener);
 			}
 		};
 	}
@@ -190,7 +170,7 @@ public class DTalk {
 	//
 	
 	public String getPublishedName() {
-		return mMDNSService != null ? mMDNSService.getPublishedName() : null;
+		return mZeroconfService != null ? mZeroconfService.getPublishedName() : null;
 	}
 
 	public static boolean hasPresence(String name) {
@@ -232,12 +212,36 @@ public class DTalk {
 		}
 		return null;
 	}
+	
+	public static ClientConnection connectTo(String to)  {
+		JtonObject presence = DTalk.getPresence(to);
+		if (null != presence) {
+			String host = presence.get("host").getAsString(null);
+			if (host != null) {
+				int port = presence.get("port").getAsInt(-1);
+				if (port != -1) {
+					StringBuilder sb = new StringBuilder();
+					sb.append("ws://");
+					sb.append(host).append(':').append(port);
+					sb.append(DTalk.DTALKSRV_PATH);
+					try {
+						return new NettyClient(to, new URI(sb.toString()));
+					} catch (URISyntaxException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+		return null;
+	}
 
 	//
-	// Connections
+	// Connection Registry
 	//
 
 	public static DTalkConnection addConnection(DTalkConnection connection) {
+		LOG.trace(">>> addConnection: {}", null != connection ? connection.getName() : null);
 		Map<String, DTalkConnection> conns = getInstance().mConnMap;
 		if (conns != null) {
 			synchronized (conns) {
@@ -248,10 +252,10 @@ public class DTalk {
 	}
 
 	public static DTalkConnection getConnection(String target) {
-		Map<String, DTalkConnection> conns = getInstance().mConnMap;
-		if (conns != null) {
-			synchronized (conns) {
-				return conns.get(target);
+		DTalk dTalk = getInstance();
+		if (dTalk.mConnMap != null) {
+			synchronized (dTalk.mConnMap) {
+				return dTalk.mConnMap.get(target);
 			}
 		}
 		return null;
@@ -259,19 +263,14 @@ public class DTalk {
 
 	// ---------------------------
 
-	public static final String DTALKSRV_PATH = "/dtalk2";
-
-	public static final int VERSION = 2;
-
 	private boolean mStarted = false;
-	private MessageBus mMessageBus;
 	private Dispatcher mDispatcher;
 	private Broker mBroker = null;
 
 	private Map<String, DTalkConnection> mConnMap;
 	private Map<String, JtonObject> mPresenceMap;
 
-	private MDNS mMDNSService;
+	private ZeroconfService mZeroconfService;
 
 	private DTalk() {
 		// hidden
@@ -281,22 +280,20 @@ public class DTalk {
 		LOG.info(">>> start: {}", config);
 
 		if (mStarted) {
-			throw new IllegalStateException("DTalk already started");
+			LOG.warn("DTalk already started");
+			return;
 		}
 
 		synchronized (this) {
 
 			if (mStarted) {
-				throw new IllegalStateException("DTalk already started");
+				LOG.warn("DTalk already started");
+				return;
 			}
 
 			mStarted = true;
 
 			try {
-
-				// Message Bus
-
-				mMessageBus = new MessageBus();
 
 				// Connections
 
@@ -338,25 +335,23 @@ public class DTalk {
 					mBroker = null;
 				}
 
-				Class<? extends Broker> brokerCls = config.getBrokerClass();
-				if (brokerCls != null) {
-					mBroker = brokerCls.newInstance();
+				mBroker = config.getBroker();
+				if (mBroker != null) {
 					mBroker.initialize(config);
 					mBroker.start();
 				}
 
 				// Discovery
 
-				if (mMDNSService != null) {
-					mMDNSService.shutdown();
-					mMDNSService = null;
+				if (mZeroconfService != null) {
+					mZeroconfService.shutdown();
+					mZeroconfService = null;
 				}
 
-				Class<? extends MDNS> mDNSCls = config.getMDNSClass();
-				if (mDNSCls != null) {
-					mMDNSService = mDNSCls.newInstance();
-					mMDNSService.initialize(config);
-					mMDNSService.start();
+				mZeroconfService = config.getZeroconfService();
+				if (mZeroconfService != null) {
+					mZeroconfService.initialize(config);
+					mZeroconfService.start();
 				}
 
 			} catch (Exception e) {
@@ -366,7 +361,7 @@ public class DTalk {
 		}
 	}
 
-	public void shutdownImpl() {
+	private void shutdownImpl() {
 		LOG.trace(">>> shutdown");
 
 		if (!mStarted) {
@@ -384,11 +379,11 @@ public class DTalk {
 			mStarted = false;
 
 			try {
-				mMDNSService.shutdown();
+				mZeroconfService.shutdown();
 			} catch (Exception e) {
 				LOG.error(e.getMessage(), e);
 			} finally {
-				mMDNSService = null;
+				mZeroconfService = null;
 			}
 
 			try {
@@ -431,10 +426,6 @@ public class DTalk {
 			}
 			
 			mPresenceMap = new ConcurrentHashMap<String, JtonObject>();
-
-			// Message Bus
-			
-			mMessageBus = null;
 		}
 
 	}
@@ -445,23 +436,29 @@ public class DTalk {
 
 	public static void main(String[] args) {
 		DTalk.start(new DTalkConfiguration() {
+
 			@Override
-			public Class<? extends Broker> getBrokerClass() {
-				return NettyBroker.class;
+			public int getPort() {
+				return 8888;
 			}
 
 			@Override
-			public Class<? extends MDNSImpl> getMDNSClass() {
-				return MDNSImpl.class;
-			}
-
-			@Override
-			public InetSocketAddress getSocketAddress() {
+			public InetAddress getAddress() {
 				try {
-					return new InetSocketAddress(InetAddress.getLocalHost(), 8888);
+					return InetAddress.getLocalHost();
 				} catch (UnknownHostException e) {
 					return null;
 				}
+			}
+			
+			@Override
+			public Broker getBroker() {
+				return new NettyBroker();
+			}
+
+			@Override
+			public ZeroconfServiceImpl getZeroconfService() {
+				return new ZeroconfServiceImpl();
 			}
 
 			@Override

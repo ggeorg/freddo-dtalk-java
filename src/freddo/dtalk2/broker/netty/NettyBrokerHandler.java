@@ -43,7 +43,6 @@ import io.netty.util.CharsetUtil;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,25 +83,37 @@ public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
 		LOG.trace(">>> handleHttpRequest: {}", req.getUri());
 
 		if (!req.getDecoderResult().isSuccess()) {
-
-			// WebSocket Handshake
-			if (req.getMethod() == HttpMethod.GET && req.getUri().startsWith(DTalk.DTALKSRV_PATH)) {
-				WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true);
-				WebSocketServerHandshaker handshaker = wsFactory.newHandshaker(req);
-				if (handshaker == null) {
-					WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
-				} else {
-					handshaker.handshake(ctx.channel(), req);
-					synchronized (mChannelMapper) {
-						NettyChannel channel = new NettyChannel(ctx, handshaker);
-						channel.setIdleTime(60);
-						mChannelMapper.put(ctx, channel);
-					}
-				}
-			}
+			sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
+			return;
 		}
 
-		sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
+		if (req.getMethod() == HttpMethod.GET && req.getUri().startsWith(DTalk.DTALKSRV_PATH)) {
+			
+			//
+			// DTalk WebSocket Handshake
+			//
+			
+			WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(getWebSocketLocation(req), null, true);
+			WebSocketServerHandshaker handshaker = wsFactory.newHandshaker(req);
+			if (handshaker == null) {
+				WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
+			} else {
+				handshaker.handshake(ctx.channel(), req);
+				synchronized (mChannelMapper) {
+					NettyChannel channel = new NettyChannel(ctx, handshaker);
+					channel.setIdleTime(60);
+					mChannelMapper.put(ctx, channel);
+				}
+			}
+			
+		}  else {
+			
+			//
+			// HTTP Request
+			//
+			
+		}
+		
 	}
 
 	private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) {
@@ -140,7 +151,6 @@ public class NettyBrokerHandler extends SimpleChannelInboundHandler<Object> {
 
 		// Get message
 		String message = ((TextWebSocketFrame) frame).text();
-		message = StringUtils.deleteWhitespace(message);
 		LOG.debug("message: {}", message);
 
 		// Handle message.

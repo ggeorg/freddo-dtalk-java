@@ -18,10 +18,10 @@ package freddo.dtalk2.discovery;
 import freddo.dtalk2.DTalkConfiguration;
 import freddo.dtalk2.services.DTalkService;
 
-public abstract class MDNS extends DTalkService {
+public abstract class ZeroconfService extends DTalkService {
 
-	public MDNS() {
-		super("dtalk.MDNS");
+	public ZeroconfService() {
+		super("dtalk.Zeroconf");
 	}
 	
 	public abstract void initialize(DTalkConfiguration config);

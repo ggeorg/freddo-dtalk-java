@@ -19,6 +19,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
@@ -44,18 +45,18 @@ public class NettyChannel implements DTalkConnection {
 	public static final AttributeKey<Object> ATTR_KEY_CLEANSESSION = AttributeKey.valueOf(CLEAN_SESSION);
 	public static final AttributeKey<Object> ATTR_KEY_CLIENTID = AttributeKey.valueOf(ATTR_CLIENTID);
 
-	private final ChannelHandlerContext mChannel;
+	private final ChannelHandlerContext mContext;
 	private final WebSocketServerHandshaker mHandshaker;
 	
 	private String mName;
 
 	NettyChannel(ChannelHandlerContext ctx, WebSocketServerHandshaker handshaker) {
-		mChannel = ctx;
+		mContext = ctx;
 		mHandshaker = handshaker;
 	}
 
-	ChannelHandlerContext getChannel() {
-		return mChannel;
+	ChannelHandlerContext getContext() {
+		return mContext;
 	}
 
 	WebSocketServerHandshaker getHandshaker() {
@@ -73,24 +74,24 @@ public class NettyChannel implements DTalkConnection {
 	}
 
 	public Object getAttribute(AttributeKey<Object> key) {
-		Attribute<Object> attr = mChannel.attr(key);
+		Attribute<Object> attr = mContext.attr(key);
 		return attr.get();
 	}
 
 	public void setAttribute(AttributeKey<Object> key, Object value) {
-		Attribute<Object> attr = mChannel.attr(key);
+		Attribute<Object> attr = mContext.attr(key);
 		attr.set(value);
 	}
 
 	public void setIdleTime(int idleTime) {
-		if (mChannel.pipeline().names().contains("idleStateHandler")) {
-			mChannel.pipeline().remove("idleStateHandler");
+		if (mContext.pipeline().names().contains("idleStateHandler")) {
+			mContext.pipeline().remove("idleStateHandler");
 		}
-		if (mChannel.pipeline().names().contains("idleEventHandler")) {
-			mChannel.pipeline().remove("idleEventHandler");
+		if (mContext.pipeline().names().contains("idleEventHandler")) {
+			mContext.pipeline().remove("idleEventHandler");
 		}
-		mChannel.pipeline().addFirst("idleStateHandler", new IdleStateHandler(idleTime, idleTime / 2, 0));
-		mChannel.pipeline().addAfter("idleStateHandler", "idleEventHandler", new ChannelDuplexHandler() {
+		mContext.pipeline().addFirst("idleStateHandler", new IdleStateHandler(idleTime, idleTime / 2, 0));
+		mContext.pipeline().addAfter("idleStateHandler", "idleEventHandler", new ChannelDuplexHandler() {
 			@Override
 			public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 				LOG.trace(">>> userEventTriggered: {}", evt);
@@ -111,12 +112,13 @@ public class NettyChannel implements DTalkConnection {
 
 	@Override
 	public Future<Void> sendMessage(String message) {
-		return mChannel.write(message);
+		LOG.trace(">>> sendMessage: {}", message);
+		return mContext.channel().writeAndFlush(new TextWebSocketFrame(message));
 	}
 
 	@Override
 	public void close() {
-		mChannel.close();
+		mContext.close();
 	}
 
 	@Override
