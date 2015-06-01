@@ -20,10 +20,14 @@ import java.util.Map;
 
 /**
  * Provides support for basic intra-application message passing.
+ * <p>
+ * Keep in mind that message bus events are handled synchronously. So, you want
+ * to take case that any events handled in this fashion are handled quickly.
+ * Otherwise, your application's performance could be negatively impacted.
  */
 public class MessageBus {
 	
-	private final Map<String, ListenerList<MessageBusListener<?>>> messageTopics = 
+	private static final Map<String, ListenerList<MessageBusListener<?>>> messageTopics = 
 			new HashMap<String, ListenerList<MessageBusListener<?>>>();
 
 	/**
@@ -32,11 +36,11 @@ public class MessageBus {
 	 * @param topic
 	 * @param messageListener
 	 */
-	public <T> void subscribe(Class<? super T> topic, MessageBusListener<T> messageListener) {
+	public static <T> void subscribe(Class<? super T> topic, MessageBusListener<T> messageListener) {
 		subscribe(topic.getName(), messageListener);
 	}
 
-	public <T> void subscribe(String topic, MessageBusListener<T> messageListener) {
+	public static <T> void subscribe(String topic, MessageBusListener<T> messageListener) {
 		ListenerList<MessageBusListener<?>> topicListeners = messageTopics.get(topic);
 
 		if (topicListeners == null) {
@@ -55,11 +59,11 @@ public class MessageBus {
 	 * @param topic
 	 * @param messageListener
 	 */
-	public <T> void unsubscribe(Class<? super T> topic, MessageBusListener<T> messageListener) {
+	public static <T> void unsubscribe(Class<? super T> topic, MessageBusListener<T> messageListener) {
 		unsubscribe(topic.getName(), messageListener);
 	}
 
-	public <T> void unsubscribe(String topic, MessageBusListener<T> messageListener) {
+	public static <T> void unsubscribe(String topic, MessageBusListener<T> messageListener) {
 		ListenerList<MessageBusListener<?>> topicListeners = messageTopics.get(topic);
 
 		if (topicListeners == null) {
@@ -77,12 +81,12 @@ public class MessageBus {
 	 * 
 	 * @param message
 	 */
-	public <T> void sendMessage(T message) {
+	public static <T> void sendMessage(T message) {
 		sendMessage(message.getClass().getName(), message);
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T> void sendMessage(String topic, T message) {
+	public static <T> void sendMessage(String topic, T message) {
 		ListenerList<MessageBusListener<?>> topicListeners = messageTopics.get(topic);
 
 		if (topicListeners != null) {
