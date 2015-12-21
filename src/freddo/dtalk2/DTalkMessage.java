@@ -15,8 +15,8 @@
  */
 package freddo.dtalk2;
 
-import com.arkasoft.jton.JtonElement;
-import com.arkasoft.jton.JtonObject;
+import com.veracloud.jton.JtonElement;
+import com.veracloud.jton.JtonObject;
 
 import freddo.messagebus.MessageBusListener;
 

@@ -18,9 +18,9 @@ package freddo.dtalk2.broker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.arkasoft.jton.JtonArray;
-import com.arkasoft.jton.JtonElement;
-import com.arkasoft.jton.serialization.JsonSerializer;
+import com.veracloud.jton.JtonArray;
+import com.veracloud.jton.JtonElement;
+import com.veracloud.jton.serialization.JsonSerializer;
 
 import freddo.dtalk2.DTalk;
 import freddo.dtalk2.DTalkConnection;

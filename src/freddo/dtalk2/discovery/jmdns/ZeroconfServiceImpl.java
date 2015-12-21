@@ -27,7 +27,7 @@ import org.apache.activemq.jmdns.ServiceListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.arkasoft.jton.JtonObject;
+import com.veracloud.jton.JtonObject;
 
 import freddo.dtalk2.DTalk;
 import freddo.dtalk2.DTalkConfiguration;
