@@ -23,7 +23,7 @@
 					DTalk2._ws.onopen = function() {
 						console.log("Web Socket Opened...");
 						// transmit client info / authenticate
-						DTalk2._send(Json.stringify({
+						DTalk2._send(JSON.stringify({
 							dtalk: 2,
 							action: "connect",
 							params: connectData
