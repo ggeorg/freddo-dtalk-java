@@ -378,12 +378,14 @@ public class DTalk {
 
 			mStarted = false;
 
-			try {
-				mZeroconfService.shutdown();
-			} catch (Exception e) {
-				LOG.error(e.getMessage(), e);
-			} finally {
-				mZeroconfService = null;
+			if (mZeroconfService != null) {
+				try {
+					mZeroconfService.shutdown();
+				} catch (Exception e) {
+					LOG.error(e.getMessage(), e);
+				} finally {
+					mZeroconfService = null;
+				}
 			}
 
 			try {
